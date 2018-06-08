@@ -18,3 +18,7 @@ class Tee:
     def write(self, s):
         self._file.write(s)
         self._stream.write(s)
+
+    def flush(self):
+        self._file.flush()
+        self._stream.flush()
