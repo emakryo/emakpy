@@ -6,15 +6,14 @@ class NvidiaInfo:
     def __init__(self, filename=None):
         if filename:
             with open(filename) as f:
-                self.raw = f.read()
+                self.str = f.read()
         else:
             command = "nvidia-smi -q -x"
             ret = subprocess.run(command.split(),
                                  stdout=subprocess.PIPE, check=True)
-            self.raw = ret.stdout
+            self.str = ret.stdout.decode(
+                    'unicode_escape').encode().decode('unicode_escape')
 
-        self.str = self.raw.decode(
-                'unicode_escape').encode().decode('unicode_escape')
         self.info = ElementTree.fromstring(self.str)
 
     @property
