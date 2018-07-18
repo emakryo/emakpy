@@ -48,10 +48,11 @@ class WorkQueue:
         self.queuefile = self.workdir / 'que'
         self.queuefile.touch()
         self.lockfile = self.workdir / 'lock'
+        self.lock = FileLock(self.lockfile)
         self.polling_interval = 10
 
     def count(self):
-        with FileLock(self.lockfile):
+        with self.lock:
             que = self.queuefile.read_text().split()
             que_exists = [pid for pid in que if psutil.pid_exists(int(pid))]
             if len(que) < len(que_exists):
@@ -60,7 +61,7 @@ class WorkQueue:
 
     @contextlib.contextmanager
     def get_device(self):
-        with FileLock(self.lockfile):
+        with self.lock:
             with self.queuefile.open(mode='a') as f:
                 f.write('{}\n'.format(os.getpid()))
 
@@ -70,7 +71,7 @@ class WorkQueue:
                 time.sleep(self.polling_interval)
                 wait = True
 
-            with FileLock(self.lockfile):
+            with self.lock:
                 que = self.queuefile.read_text().split()
                 que_exists = []
                 for pid in que:
@@ -92,7 +93,7 @@ class WorkQueue:
             if available_id is None:
                 continue
 
-            with FileLock(self.lockfile):
+            with self.lock:
                 current = self.workdir / str(available_id)
                 if current.exists():
                     pid = current.read_text()
@@ -109,5 +110,5 @@ class WorkQueue:
 
         yield available_id
 
-        with FileLock(self.lockfile):
+        with self.lock:
             current.write_text("")
