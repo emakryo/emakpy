@@ -9,6 +9,7 @@ setup(
     packages=['emakpy'],
     install_requires=[
         'filelock',
+        'psutil',
     ],
     test_suite='nose.collector',
     tests_require=['nose'],

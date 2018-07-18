@@ -4,6 +4,7 @@ import pathlib
 import subprocess
 import time
 from xml.etree import ElementTree
+import psutil
 from filelock import FileLock
 
 
@@ -51,7 +52,11 @@ class WorkQueue:
 
     def count(self):
         with FileLock(self.lockfile):
-            return len(self.queuefile.read_text().split())
+            que = self.queuefile.read_text().split()
+            que_exists = [pid for pid in que if psutil.pid_exists(int(pid))]
+            if len(que) < len(que_exists):
+                self.quefile.write_text('\n'.join(que_exists))
+            return len(que_exists)
 
     @contextlib.contextmanager
     def get_device(self):
@@ -67,7 +72,14 @@ class WorkQueue:
 
             with FileLock(self.lockfile):
                 que = self.queuefile.read_text().split()
-                if int(que[0]) != os.getpid():
+                que_exists = []
+                for pid in que:
+                    if psutil.pid_exists(int(pid)):
+                        que_exists.append(pid)
+                if len(que_exists) < len(que):
+                    self.queuefile.write_text('\n'.join(que_exists))
+
+                if int(que_exists[0]) != os.getpid():
                     continue
 
             nv = NvidiaInfo()
@@ -82,8 +94,13 @@ class WorkQueue:
 
             with FileLock(self.lockfile):
                 current = self.workdir / str(available_id)
-                if current.exists() and current.read_text():
-                    continue
+                if current.exists():
+                    pid = current.read_text()
+                    if pid:
+                        if psutil.pid_exists(int(pid)):
+                            continue
+                        else:
+                            current.write_text("")
 
                 que = self.queuefile.read_text().split()
                 self.queuefile.write_text('\n'.join(que[1:]))
