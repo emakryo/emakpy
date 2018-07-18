@@ -7,4 +7,9 @@ setup(
     author="Ryosuke Kamesawa",
     author_email="emak.ryo@gmail.com",
     packages=['emakpy'],
+    install_requires=[
+        'filelock',
+    ],
+    test_suite='nose.collector',
+    tests_require=['nose'],
 )
