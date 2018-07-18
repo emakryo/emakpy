@@ -45,8 +45,13 @@ class WorkQueue:
         self.workdir = pathlib.Path(dirname).expanduser()
         self.workdir.mkdir(exist_ok=True)
         self.queuefile = self.workdir / 'que'
+        self.queuefile.touch()
         self.lockfile = self.workdir / 'lock'
-        self.polling_interval = 60
+        self.polling_interval = 10
+
+    def count(self):
+        with FileLock(self.lockfile):
+            return len(self.queuefile.read_text().split())
 
     @contextlib.contextmanager
     def get_device(self):
@@ -54,8 +59,12 @@ class WorkQueue:
             with self.queuefile.open(mode='a') as f:
                 f.write('{}\n'.format(os.getpid()))
 
+        wait = False
         while True:
-            time.sleep(self.polling_interval)
+            if wait:
+                time.sleep(self.polling_interval)
+                wait = True
+
             with FileLock(self.lockfile):
                 que = self.queuefile.read_text().split()
                 if int(que[0]) != os.getpid():
@@ -76,6 +85,7 @@ class WorkQueue:
                 if current.exists() and current.read_text():
                     continue
 
+                que = self.queuefile.read_text().split()
                 self.queuefile.write_text('\n'.join(que[1:]))
                 current.write_text(str(os.getpid()))
                 break
