@@ -52,12 +52,28 @@ class WorkQueue:
         self.polling_interval = 10
 
     def count(self):
+        self.eliminate_non_exist()
+        with self.lock:
+            return len(self.queuefile.read_text().split())
+
+    def eliminate_non_exist(self):
         with self.lock:
             que = self.queuefile.read_text().split()
             que_exists = [pid for pid in que if psutil.pid_exists(int(pid))]
-            if len(que) < len(que_exists):
-                self.quefile.write_text('\n'.join(que_exists))
-            return len(que_exists)
+            if len(que) > len(que_exists):
+                self.queuefile.write_text('\n'.join(que_exists))
+
+            for i in range(NvidiaInfo().n_gpus):
+                current = self.workdir / str(i)
+                if not current.exists():
+                    continue
+
+                pid = current.read_text()
+                if not pid:
+                    continue
+
+                if not psutil.pid_exists(int(pid)):
+                    current.write_text('')
 
     @contextlib.contextmanager
     def get_device(self):
@@ -71,16 +87,11 @@ class WorkQueue:
                 time.sleep(self.polling_interval)
                 wait = True
 
+            self.eliminate_non_exist()
             with self.lock:
                 que = self.queuefile.read_text().split()
-                que_exists = []
-                for pid in que:
-                    if psutil.pid_exists(int(pid)):
-                        que_exists.append(pid)
-                if len(que_exists) < len(que):
-                    self.queuefile.write_text('\n'.join(que_exists))
-
-                if int(que_exists[0]) != os.getpid():
+                print(os.getpid(), que, flush=True)
+                if int(que[0]) != os.getpid():
                     continue
 
             nv = NvidiaInfo()
@@ -95,13 +106,8 @@ class WorkQueue:
 
             with self.lock:
                 current = self.workdir / str(available_id)
-                if current.exists():
-                    pid = current.read_text()
-                    if pid:
-                        if psutil.pid_exists(int(pid)):
-                            continue
-                        else:
-                            current.write_text("")
+                if current.exists() and current.read_text():
+                    continue
 
                 que = self.queuefile.read_text().split()
                 self.queuefile.write_text('\n'.join(que[1:]))

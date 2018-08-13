@@ -1,6 +1,5 @@
 import datetime
 import multiprocessing
-import os
 import pathlib
 import unittest
 import emakpy.nvidia
@@ -58,4 +57,5 @@ def f(i, queue):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # unittest.main()
+    TestWorkQueue().test_multiple_process()
